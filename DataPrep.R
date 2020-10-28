@@ -2,6 +2,9 @@ library(tidyverse)
 library(readr)
 library(data.table)
 library(ggplot2)
+library(sf)
+library(raster)
+library(rgdal)
 
 ####  create a file recording the features used
 Features<-read_delim(FEATURECODE,delim="\t",col_names = c("Code","Name",'Description'))
@@ -22,7 +25,8 @@ Data <- Data %>% rename(Latitude=V5,Longitude=V6,Code=V8)%>%
                  dplyr::select(-V7)
  
 Data<-Data %>% dplyr::filter(Code %in% Codes) %>%
-               dplyr::filter(Latitude<80 & Latitude > - 55)
+               dplyr::filter(Latitude<80 & Latitude > - 55) %>%
+               dplyr::filter(Longitude<175 & Longitude> -175)
 
 Data<- Data %>% mutate(Built=case_when(Code %in% c("DEVH","INDS","SQR",
                                                "MALL","PKLT")~TRUE,
@@ -38,7 +42,8 @@ AIR <- AIR %>% rename(Latitude=latitude_deg,Longitude=longitude_deg)
 AIR <- AIR %>% rename(AirportType=type,AirportName=name,ISO=iso_country,ID=id) %>%
                dplyr::select(ID,AirportName,AirportType,Longitude,Latitude,ISO) %>%
                dplyr::filter(AirportType %in% c("large_airport","medium_airport"))%>%
-               dplyr::filter(Latitude<80 & Latitude > - 55)
+               dplyr::filter(Latitude<80 & Latitude > - 55) %>%
+               dplyr::filter(Longitude<175 & Longitude> -175)
 
 write_csv(AIR,"AirportSelected.csv")
 
