@@ -1,4 +1,4 @@
-newExtent <- function(lat,lon,radius=1000){
+createExtent <- function(lat,lon,radius=1000){
   require(raster)
   earth <- 6378.137 
   dtr <- pi/180
