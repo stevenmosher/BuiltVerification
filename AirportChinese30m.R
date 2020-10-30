@@ -10,18 +10,19 @@ source('D:/GlobalHistoricalClimateNetwork/newExtent.R')
 ES<-"D:\\GlobalHistoricalClimateNetwork\\Rasters\\landcover30\\globemapsheet"
 ESH<-"GlobeMapSheet"
 ESHP <-read_sf(dsn=ES,layer=ESH)
+ESHP <- ESHP %>% dplyr::select(REMARK) %>% rename(location=REMARK)
+INDEX<- tbl_df(read.csv(CHINA_INDEX,stringsAsFactors = F)) %>%
+        dplyr::select(-X) 
  
 AIR<-tbl_df(read.csv(AIRPORT_SPOT,stringsAsFactors = F)) %>%
      dplyr::select(-X)
 
-
+ 
+AIR <- st_as_sf(AIR,coords = c("Longitude","Latitude"),crs=4326)
+AIR <- st_transform(AIR,crs=crs(ESHP)) 
  
 
-AIR <- st_as_sf(AIR,coords = c("Longitude","Latitude"),crs=4326)
-AIR <- st_transform(EU,crs=crs(ESHP)) 
-ESHP<-st_transform(ESHP,crs=crs(EU))
-
-Files<-st_join(EU,ESHP)
+Files<-st_join(AIR,ESHP)
 nrow(Files)
 Files<- Files %>% dplyr::filter(!is.na(location)) %>% rename(Center=location)
 nrow(Files)
@@ -57,7 +58,7 @@ Files <- left_join(Files,LL, by="ID")
 identical(Files$ID,GEOM$ID)
 
 FC<- st_coordinates(GEOM)
-Files <- Files %>% mutate(X=FC[,1],Y=FC[,2])
+Files <- Files %>% mutate(Longitude=FC[,1],Latitude=FC[,2])
 
 NC <-Files %>% group_by(ID) %>% 
   summarise(NaCount= is.na(UL)+is.na(UR)+is.na(LR)+is.na(LL),
@@ -65,26 +66,32 @@ NC <-Files %>% group_by(ID) %>%
 
 IB <- NC %>% dplyr::filter(UniqueCount==1)
 Files <- Files %>% dplyr::filter(ID %in% IB$ID)
-Files <- Files %>% dplyr::select(ID,X,Y,Center)
+Files <- Files %>% dplyr::select(ID,Longitude,Latitude,Center) %>%
+                   rename(Grid=Center)
+Files <-left_join(Files,INDEX,by="Grid")
+Files <-Files %>% dplyr::filter(!is.na(Filename))
 
-Files <- Files %>% mutate(BuiltAreaSpot=NA)
+Files <- Files %>% mutate(BuiltAreaCH30m=NA)
+
+Files <- st_as_sf(Files,coords = c("Longitude","Latitude"),crs=4326)
 
  
 
 for(i in 1:nrow(Files)){
   print(i)
-   
-    e<- extent(Files$X[i]-1500,Files$X[i]+1500,Files$Y[i]-1500,Files$Y[i]+1500)
-    R<- raster(file.path(SPOTDIR,Files$Center[i]))
-    R<-crop(R,e)
-    R<- Which(R==255)
-    A<-area(R)*R
-    Files$BuiltAreaSpot[i] <- cellStats(A,stat="sum")/1000000
-   
   
+     R<- raster(Files$Filename[i])
+     ThisFile<-Files[i,]
+     ThisFile<-st_transform(ThisFile,crs=crs(R))
+     PT<- st_coordinates(ThisFile)
+     e<- extent(PT[1]-1500,PT[1]+1500,PT[2]-1500,PT[2]+1500)
+     R<-crop(R,e)
+     R<- Which(R==80)
+     A<-area(R)*R
+     Files$BuiltAreaCH30m[i] <- cellStats(A,stat="sum")/1000000
 }
 
-Files<-Files %>% dplyr::select(ID,BuiltAreaSpot)
+Files<-Files %>% dplyr::select(ID,BuiltAreaCH30m) %>% st_drop_geometry()
 AIR<-left_join(AIR,Files,by="ID") 
 
-write.csv(AIR,"AirportBuiltSpot.csv")
+write.csv(AIR,"AirportBuiltCH30m.csv")
