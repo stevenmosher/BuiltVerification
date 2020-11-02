@@ -1,11 +1,9 @@
-source("SpatialConstants.R")
-source("Libraries.R")
-source('D:/GlobalHistoricalClimateNetwork/getInv_GHCN.R')
-source('D:/GlobalHistoricalClimateNetwork/readInventory_GHCN.R')
-source('D:/GlobalHistoricalClimateNetwork/filedate_GHCN.R')
-source('D:/GlobalHistoricalClimateNetwork/getShapefile.R')
-source('D:/GlobalHistoricalClimateNetwork/airportName.R')
-source('D:/GlobalHistoricalClimateNetwork/newExtent.R')
+library(tidyverse)
+library(readr)
+library(sf)
+library(rgdal)
+library(raster)
+source("createExtent.R") 
 
 ES<-"D:\\GlobalHistoricalClimateNetwork\\Rasters\\landcover30\\globemapsheet"
 ESH<-"GlobeMapSheet"
@@ -16,6 +14,7 @@ INDEX<- tbl_df(read.csv(CHINA_INDEX,stringsAsFactors = F)) %>%
  
 AIR<-tbl_df(read.csv(AIRPORT_SPOT,stringsAsFactors = F)) %>%
      dplyr::select(-X)
+A<-AIR  %>% dplyr::select(ID,Longitude,Latitude)
 
  
 AIR <- st_as_sf(AIR,coords = c("Longitude","Latitude"),crs=4326)
@@ -92,6 +91,10 @@ for(i in 1:nrow(Files)){
 }
 
 Files<-Files %>% dplyr::select(ID,BuiltAreaCH30m) %>% st_drop_geometry()
-AIR<-left_join(AIR,Files,by="ID") 
+FC<- st_coordinates(AIR)
+AIR<-AIR %>% st_drop_geometry()
+AIR<-left_join(AIR,Files,by="ID")
+
+AIR<-AIR %>% mutate(Longitude=FC[,1],Latitude=FC[,2])
 
 write.csv(AIR,"AirportBuiltCH30m.csv")
